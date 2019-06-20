@@ -3,6 +3,7 @@ package de.hasenburg.iotsdg.hiking
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import de.hasenburg.geobroker.commons.randomName
+import de.hasenburg.iotsdg.openData.getHeader
 import org.apache.logging.log4j.LogManager
 import org.locationtech.spatial4j.distance.DistanceUtils.KM_TO_DEG
 import java.io.File
@@ -209,7 +210,7 @@ fun checkMessageGeofenceBrokerOverlap(geofence: Geofence) {
 
 /**
  * @param travelTime - in seconds
- * @param clientDirection - the general direction, deviates by +- 10
+ * @param clientDirection - the general direction, deviates by +/- 10
  */
 fun calculateNextLocation(brokerGeofence: Geofence, location: Location, travelTime: Int,
                           clientDirection: Double): Location {
