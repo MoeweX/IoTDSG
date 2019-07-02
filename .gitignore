@@ -5,3 +5,8 @@ hikingData*
 target/
 logfile.log
 out/
+environmentaldata/
+dataDistribution/
+Sample/
+validationData/
+>>>>>>> c9b1d48... Add validationDataGenerator
