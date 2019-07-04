@@ -45,92 +45,76 @@ private val brokerNames = listOf("Columbus", "Frankfurt", "Paris")
 private val brokerAreas = listOf(Geofence.circle(Location(-82.999083, 39.961332), 5.0),
         Geofence.circle(Location(50.106732, 8.663124), 2.1),
         Geofence.circle(Location(48.877366, 2.359708), 2.1))
-private val workloadMachinePerBroker = listOf(3, 3, 3)
+private val workloadMachinesPerBroker = listOf(3, 3, 3)
 private val subsPerBrokerArea = listOf(2, 2, 2)
 private val pubsPerBrokerArea = listOf(3, 3, 3)
 private var timeToRunPerClient = 1800000
 
 
 fun main() {
+    validateBrokersDoNotOverlap(brokerAreas)
+    prepareDir(directoryPath)
 
-    if (checkBrokerOverlap(brokerAreas)) {
-        logger.fatal("brokers should not overlap")
-        System.exit(1)
-    }
-    //to maintain indicators for scenario
-    val stat = Stats()
-    // make sure dir exists, delete old content
-    val dir = File(directoryPath)
-    if (dir.exists()) {
-        logger.info("Deleting old content")
-        dir.deleteRecursively()
-    }
-    dir.mkdirs()
-
+    val stats = Stats()
     val setup = getSetupString("de.hasenburg.iotsdg.second.OpenDataKt")
     logger.info(setup)
     File("$directoryPath/01_summary.txt").writeText(setup)
 
     for (b in 0..2) { // for sensors/publishers
 
-        val broker =
-                getBrokerTriple(b, brokerNames, brokerAreas, subsPerBrokerArea, pubsPerBrokerArea)
+        val broker = getBrokerTriple(b, brokerNames, brokerAreas, subsPerBrokerArea, pubsPerBrokerArea)
         var currentWorkloadMachine: Int
 
-        for (pub in 0..broker.third.second) {
+        // publisher actions
+        for (pub in 1..broker.third.second) {
+            currentWorkloadMachine =
+                    getCurrentWorkloadMachine(pub, broker.first, workloadMachinesPerBroker[b], broker.third.second)
 
-            if (workloadMachinePerBroker.get(b) == 0) {
-                logger.info("Skipping actions for broker ${broker.first} as it does not have any workload machines")
-                break
-            }
-            currentWorkloadMachine = pub % workloadMachinePerBroker.get(b)
             val clientName = randomName()
-            val file = File("$directoryPath/${broker.first}-$currentWorkloadMachine-Pub-$clientName.csv")
+            val file = File("$directoryPath/${broker.first}-${currentWorkloadMachine}_Pub_$clientName.csv")
             var timestamp = Random.nextInt(0, 2000)
             val writer = file.bufferedWriter()
             val location = Location.randomInGeofence(broker.second)
             writer.write(getHeader())
-            writer.write(calculatePingActions(timestamp, location, stat))
+            writer.write(calculatePingActions(timestamp, location, stats))
             while (timestamp <= timeToRunPerClient) {
-                writer.write(calculatePublishActions(timestamp, location, stat))
+                writer.write(calculatePublishActions(timestamp, location, stats))
                 timestamp += Random.nextInt(minPubTimeGap, maxPubTimeGap)
             }
             writer.flush()
             writer.close()
         }
 
-        for (c in 0..broker.third.first) { // for subscribers
+        // subscriber actions
+        for (sub in 1..broker.third.first) { // for subscribers
+            currentWorkloadMachine =
+                    getCurrentWorkloadMachine(sub, broker.first, workloadMachinesPerBroker[b], broker.third.first)
 
-            if (workloadMachinePerBroker.get(b) == 0) {
-                logger.info("Skipping actions for broker ${broker.first} as it does not have any workload machines")
-                break
-            }
-            currentWorkloadMachine = c % workloadMachinePerBroker.get(b)
             val clientName = randomName()
             logger.debug("Calculating actions for client $clientName")
             var location = Location.randomInGeofence(broker.second)
             var timestamp = Random.nextInt(0, 3000)
-            val file = File("$directoryPath/${broker.first}-$currentWorkloadMachine-Sub-$clientName.csv")
+            val file = File("$directoryPath/${broker.first}-${currentWorkloadMachine}_Sub_$clientName.csv")
             val writer = file.bufferedWriter()
             writer.write(getHeader())
-            writer.write(calculateSubscribeActions(timestamp, location, stat))
+            writer.write(calculateSubscribeActions(timestamp, location, stats))
             timestamp += 1000
             var subRenewalTime = Random.nextInt(minSubRenewalTime, maxSubRenewalTime)
 
             while (timestamp <= timeToRunPerClient) {
 
                 if (timestamp >= subRenewalTime) {
-                    writer.write(calculateSubscribeActions(timestamp, location, stat))
+                    writer.write(calculateSubscribeActions(timestamp, location, stats))
                     subRenewalTime += Random.nextInt(minSubRenewalTime, maxSubRenewalTime)
                 }
                 if (getTrueWithChance(mobilityProbability)) {
-                    writer.write(calculatePingActions(timestamp, location, stat))
+                    writer.write(calculatePingActions(timestamp, location, stats))
                     location = calculateNextLocation(broker.second,
                             location,
                             Random.nextDouble(0.0, 360.0),
                             minTravelDistance,
                             maxTravelDistance,
-                            stat)
+                            stats)
                 }
                 timestamp += Random.nextInt(minSubTimeGap, maxSubTimeGap)
             }
@@ -138,17 +122,18 @@ fun main() {
             writer.close()
         }
     }
-    val output = getOutput(brokerNames,
-            subsPerBrokerArea,
-            pubsPerBrokerArea,
-            timeToRunPerClient / 1000,
-            stat)
+    val output = getSummary(subsPerBrokerArea, pubsPerBrokerArea, timeToRunPerClient / 1000, stats)
 
     logger.info(output)
     File("$directoryPath/01_summary.txt").appendText(output)
 }
 
-private fun calculateSubscribeActions(timestamp: Int, location: Location, stat: Stats): String {
+private fun calculatePingActions(timestamp: Int, location: Location, stats: Stats): String {
+    stats.addPingMessages()
+    return "$timestamp;${location.lat};${location.lon};ping;;;\n"
+}
+
+private fun calculateSubscribeActions(timestamp: Int, location: Location, stats: Stats): String {
 
     val actions = StringBuilder()
 
@@ -156,48 +141,48 @@ private fun calculateSubscribeActions(timestamp: Int, location: Location, stat: 
     val geofenceTB = Geofence.circle(location,
             Random.nextDouble(minTemperatureBroadcastSubscriptionGeofenceDiameter,
                     maxTemperatureBroadcastSubscriptionGeofenceDiameter))
-    checkSubscriptionGeofenceBrokerOverlap(geofenceTB, brokerAreas, stat)
+    addStat_subscriptionGeofenceOverlaps(geofenceTB, brokerAreas, stats)
     actions.append("${timestamp + 1};${location.lat};${location.lon};subscribe;" + "$temperatureTopic;" + "${geofenceTB.wktString};\n")
-    stat.addSubscribeMessages()
+    stats.addSubscribeMessages()
 
     // humidity
     val geofenceHB = Geofence.circle(location,
             Random.nextDouble(minHumidityBroadcastSubscriptionGeofenceDiameter,
                     maxHumidityBroadcastSubscriptionGeofenceDiameter))
     actions.append("${timestamp + 2};${location.lat};${location.lon};subscribe;" + "$humidityTopic;" + "${geofenceHB.wktString};\n")
-    checkSubscriptionGeofenceBrokerOverlap(geofenceHB, brokerAreas, stat)
-    stat.addSubscribeMessages()
+    addStat_subscriptionGeofenceOverlaps(geofenceHB, brokerAreas, stats)
+    stats.addSubscribeMessages()
 
     // barometric pressure
     val geofenceBB = Geofence.circle(location,
             Random.nextDouble(minBarometricBroadcastSubscriptionGeofenceDiameter,
                     maxBarometricBroadcastSubscriptionGeofenceDiameter))
     actions.append("${timestamp + 3};${location.lat};${location.lon};subscribe;" + "$barometricPressureTopic;" + "${geofenceBB.wktString};\n")
-    checkSubscriptionGeofenceBrokerOverlap(geofenceBB, brokerAreas, stat)
-    stat.addSubscribeMessages()
+    addStat_subscriptionGeofenceOverlaps(geofenceBB, brokerAreas, stats)
+    stats.addSubscribeMessages()
 
     return actions.toString()
 }
 
-private fun calculatePublishActions(timestamp: Int, location: Location, stat: Stats): String {
+private fun calculatePublishActions(timestamp: Int, location: Location, stats: Stats): String {
     val actions = StringBuilder()
 
     // temperature condition
     actions.append("${timestamp + 4};${location.lat};${location.lon};publish;" + "$temperatureTopic;;" + "$temperaturePayloadSize\n")
-    stat.addPublishMessages()
-    stat.addPayloadSize(temperaturePayloadSize)
+    stats.addPublishMessages()
+    stats.addPayloadSize(temperaturePayloadSize)
 
     // humidity broadcast
     var payloadSize = Random.nextInt(minHumidityPayloadSize, maxHumidityPayloadSize)
     actions.append("${timestamp + 5};${location.lat};${location.lon};publish;" + "$humidityTopic;;" + "$payloadSize\n")
-    stat.addPayloadSize(payloadSize)
-    stat.addPublishMessages()
+    stats.addPayloadSize(payloadSize)
+    stats.addPublishMessages()
 
     // barometric pressure broadcast
     payloadSize = Random.nextInt(minBarometerPayloadSize, maxBarometerPayloadSize)
     actions.append("${timestamp + 6};${location.lat};${location.lon};publish;" + "$barometricPressureTopic;;$payloadSize\n")
-    stat.addPayloadSize(payloadSize)
-    stat.addPublishMessages()
+    stats.addPayloadSize(payloadSize)
+    stats.addPublishMessages()
     return actions.toString()
 }
 

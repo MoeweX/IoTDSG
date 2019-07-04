@@ -9,6 +9,10 @@ class Stats {
     private var numberOfSubscribeMessages = 0
     private var numberOfOverlappingMessageGeofences = 0
 
+    /*****************************************************************
+     * Get Stats
+     ****************************************************************/
+
     fun getNumberOfPingMessages(): Int {
         return numberOfPingMessages
     }
@@ -36,6 +40,10 @@ class Stats {
     fun getTotalPayloadSize(): Int {
         return totalPayloadSize
     }
+
+    /*****************************************************************
+     * Add Stats
+     ****************************************************************/
 
     fun addSubscribeMessages() {
         numberOfSubscribeMessages++
