@@ -1,4 +1,4 @@
-package de.hasenburg.iotsdg.stats
+package de.hasenburg.iotsdg
 
 class Stats {
     private var numberOfPingMessages = 0

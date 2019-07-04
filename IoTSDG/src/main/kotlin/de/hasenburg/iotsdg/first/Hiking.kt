@@ -3,12 +3,12 @@ package de.hasenburg.iotsdg.first
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import de.hasenburg.geobroker.commons.randomName
+import de.hasenburg.iotsdg.*
 import org.apache.logging.log4j.LogManager
 import org.locationtech.spatial4j.distance.DistanceUtils.KM_TO_DEG
 import java.io.File
-import de.hasenburg.iotsdg.utility.*
 import kotlin.random.Random
-import de.hasenburg.iotsdg.stats.Stats
+import de.hasenburg.iotsdg.Stats
 
 private val logger = LogManager.getLogger()
 

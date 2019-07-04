@@ -3,7 +3,6 @@ package de.hasenburg.iotsdg
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import de.hasenburg.geobroker.commons.randomName
-import de.hasenburg.iotsdg.utility.*
 import org.apache.logging.log4j.LogManager
 import org.locationtech.spatial4j.distance.DistanceUtils
 import java.io.File

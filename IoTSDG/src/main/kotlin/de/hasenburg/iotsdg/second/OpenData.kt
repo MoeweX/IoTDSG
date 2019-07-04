@@ -3,12 +3,12 @@ package de.hasenburg.iotsdg.second
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import de.hasenburg.geobroker.commons.randomName
-import de.hasenburg.iotsdg.utility.*
+import de.hasenburg.iotsdg.*
 import org.locationtech.spatial4j.distance.DistanceUtils
 import java.io.File
 import org.apache.logging.log4j.LogManager
 import kotlin.random.Random
-import de.hasenburg.iotsdg.stats.Stats
+import de.hasenburg.iotsdg.Stats
 
 
 private val logger = LogManager.getLogger()
@@ -73,7 +73,8 @@ fun main() {
 
     for (b in 0..2) { // for sensors/publishers
 
-        val broker = getBrokerTriple(b, brokerNames, brokerAreas, subsPerBrokerArea, pubsPerBrokerArea)
+        val broker =
+                getBrokerTriple(b, brokerNames, brokerAreas, subsPerBrokerArea, pubsPerBrokerArea)
         var currentWorkloadMachine: Int
 
         for (pub in 0..broker.third.second) {
@@ -137,7 +138,11 @@ fun main() {
             writer.close()
         }
     }
-    val output = getOutput(brokerNames, subsPerBrokerArea, pubsPerBrokerArea, timeToRunPerClient / 1000, stat)
+    val output = getOutput(brokerNames,
+            subsPerBrokerArea,
+            pubsPerBrokerArea,
+            timeToRunPerClient / 1000,
+            stat)
 
     logger.info(output)
     File("$directoryPath/01_summary.txt").appendText(output)

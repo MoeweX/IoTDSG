@@ -1,10 +1,9 @@
-package de.hasenburg.iotsdg.utility
+package de.hasenburg.iotsdg
 
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import kotlin.random.Random
 import org.apache.logging.log4j.LogManager
-import de.hasenburg.iotsdg.stats.Stats
 
 // Stats
 private var numberOfPingMessages = 0
