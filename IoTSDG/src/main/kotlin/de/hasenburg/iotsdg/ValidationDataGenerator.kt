@@ -5,6 +5,7 @@ import de.hasenburg.geobroker.commons.model.spatial.Location
 import de.hasenburg.geobroker.commons.randomName
 import org.apache.logging.log4j.LogManager
 import org.locationtech.spatial4j.distance.DistanceUtils
+import units.Time
 import java.io.File
 import kotlin.random.Random
 
@@ -26,39 +27,12 @@ private const val directoryPath = "./validationData"
 private const val topic = "data"
 private const val payloadSize = 20 // byte
 
-// -------- Stats  --------
-private var numberOfPingMessages = 0
-private var numberOfPublishedMessages = 0
-private var numberOfSubscribeMessages = 0
-private var totalPayloadSize = 0 // byte
-private var numberOfOverlappingSubscriptionGeofences = 0
-private var numberOfOverlappingMessageGeofences = 0
-
 fun main() {
-    // pre-check, message geofences do not overlap
-    for (ba in brokerAreas) {
-        var numberOfOverlaps = 0
-        for (baI in brokerAreas) {
-            if (ba.intersects(baI)) {
-                numberOfOverlaps++
-            }
-        }
+    validateBrokersDoNotOverlap(brokerAreas)
+    prepareDir(directoryPath)
 
-        if (numberOfOverlaps > 1) {
-            logger.fatal("Brokers should not overlap!")
-            System.exit(1)
-        }
-    }
-
-    // make sure dir exists, delete old content
-    val dir = File(directoryPath)
-    if (dir.exists()) {
-        logger.info("Deleting old content")
-        dir.deleteRecursively()
-    }
-    dir.mkdirs()
-
-    val setup = getSetupString()
+    val stats = Stats()
+    val setup = getSetupString("de.hasenburg.iotsdg.ValidationDataGeneratorKt")
     logger.info(setup)
     File("$directoryPath/00_summary.txt").writeText(setup)
 
@@ -84,105 +58,76 @@ fun main() {
 
             // ping (0 - 5000 ms)
             var location = Location.randomInGeofence(broker.second)
-            writer.write(calculatePingActions(Random.nextInt(0, 5000), location))
+            writer.write(calculatePingAction(Random.nextInt(0, 5000), location, stats))
 
             // subscribe (10000 - 15000 ms)
-            writer.write(calculateSubscribeActions(Random.nextInt(10000, 15000), location))
+            writer.write(calculateSubscribeActions(Random.nextInt(10000, 15000), location, stats))
 
             // 5 publish (20000 - 55000 ms)
-            writer.write(calculatePublishActions(5, 20000, 55000, location))
+            writer.write(calculatePublishActions(5, 20000, 55000, location, stats))
 
             // ping (60000 - 65000 ms)
             location = Location.randomInGeofence(broker.second)
-            writer.write(calculatePingActions(Random.nextInt(60000, 65000), location))
+            writer.write(calculatePingAction(Random.nextInt(60000, 65000), location, stats))
             // WARNING: I AM NOT INSIDE MY OWN SUBSCRIPTION GEOFENCE ANYMORE! -> messages might not be delivered to anyone
 
             // 5 publish (70000 - 105000 ms)
-            writer.write(calculatePublishActions(5, 70000, 105000, location))
+            writer.write(calculatePublishActions(5, 70000, 105000, location, stats))
 
             // subscribe (110000 - 115000 ms)
-            writer.write(calculateSubscribeActions(Random.nextInt(110000, 115000), location))
+            writer.write(calculateSubscribeActions(Random.nextInt(110000, 115000), location, stats))
 
             // 5 publish (120000 - 155000 ms)
-            writer.write(calculatePublishActions(5, 120000, 155000, location))
+            writer.write(calculatePublishActions(5, 120000, 155000, location, stats))
+
+            // final ping as last message
+            writer.write(calculatePingAction(155000, location, stats))
 
             writer.flush()
             writer.close()
         }
     }
 
-    val timeToRunPerClient = 155
-
-    val output = """Data set characteristics:
-    Number of ping messages: $numberOfPingMessages (${numberOfPingMessages / timeToRunPerClient} messages/s)
-    Number of subscribe messages: $numberOfSubscribeMessages (${numberOfSubscribeMessages / timeToRunPerClient} messages/s)
-    Number of publish messages: $numberOfPublishedMessages (${numberOfPublishedMessages / timeToRunPerClient} messages/s)
-    Publish payload size: ${totalPayloadSize / 1000.0} KB (${totalPayloadSize / numberOfPublishedMessages} byte/message)
-    Number of subscription geofence broker overlaps: $numberOfOverlappingSubscriptionGeofences
-    Number of message geofence broker overlaps: $numberOfOverlappingMessageGeofences"""
+    val timeToRunPerClient = Time(155, Time.Unit.S)
+    val output = stats.getSummary(clientsPerBrokerArea, timeToRunPerClient)
 
     logger.info(output)
     File("$directoryPath/00_summary.txt").appendText(output)
 }
 
-private fun getSetupString(): String {
-    // there should be another solution in the future: https://stackoverflow.com/questions/33907095/kotlin-how-can-i-use-reflection-on-packages
-    val c = Class.forName("de.hasenburg.iotsdg.ValidationDataGeneratorKt")
-    val stringBuilder = java.lang.StringBuilder("Setup:\n")
-
-    for (field in c.declaredFields) {
-        if (field.name.contains("logger") || field.name.contains("numberOf") || field.name.contains("clientDistanceTravelled") || field.name.contains(
-                        "totalPayloadSize")) {
-            // pass
-        } else {
-            stringBuilder.append("\t").append(field.name).append(": ").append(field.get(c)).append("\n")
-        }
-    }
-    return stringBuilder.toString()
-}
-
-private fun calculatePingActions(timestamp: Int, location: Location): String {
-    numberOfPingMessages++
+private fun calculatePingAction(timestamp: Int, location: Location, stats: Stats): String {
+    stats.addPingMessage()
     return "$timestamp;${location.lat};${location.lon};ping;;;\n"
 
 }
 
-fun calculateMessageOverlaps(geofence: Geofence, brokerAreas: List<Geofence>): Int {
-    var intersects = -1 // own broker
-    brokerAreas.forEach {
-        if (geofence.intersects(it)) {
-            intersects++
-        }
-    }
-    return intersects
-}
-
-private fun calculateSubscribeActions(timestamp: Int, location: Location): String {
+private fun calculateSubscribeActions(timestamp: Int, location: Location, stats: Stats): String {
     val actions = StringBuilder()
 
     val geofence = Geofence.circle(location, subscriptionGeofenceDiameter)
-    numberOfOverlappingSubscriptionGeofences += calculateMessageOverlaps(geofence, brokerAreas)
     actions.append("$timestamp;${location.lat};${location.lon};subscribe;" + "$topic;${geofence.wktString};\n")
-    numberOfSubscribeMessages++
+    stats.addSubscriptionGeofenceOverlaps(geofence, brokerAreas)
+    stats.addSubscribeMessage()
 
     return actions.toString()
 }
 
-private fun calculatePublishActions(@Suppress("SameParameterValue") count: Int, startTime: Int, endTime: Int, location: Location): String {
+private fun calculatePublishActions(@Suppress("SameParameterValue") count: Int, startTime: Int, endTime: Int,
+                                    location: Location, stats: Stats): String {
     val actions = StringBuilder()
 
     val gap = (endTime - startTime) / count
     val geofence = Geofence.circle(location, messageGeofenceDiameter)
 
-    for (i in 0..count-1) {
+    for (i in 0 until count) {
         val start = startTime + i * gap
-        val end = startTime + (i+1) * gap
+        val end = startTime + (i + 1) * gap
         val timestamp = Random.nextInt(start, end)
 
-        numberOfOverlappingMessageGeofences += calculateMessageOverlaps(geofence, brokerAreas)
         actions.append("$timestamp;${location.lat};${location.lon};publish;" + "$topic;${geofence.wktString};$payloadSize\n")
-        numberOfPublishedMessages++
-        totalPayloadSize += payloadSize
+        stats.addMessageGeofenceOverlaps(geofence, brokerAreas)
+        stats.addPublishMessage()
+        stats.addPayloadSize(payloadSize)
     }
 
     return actions.toString()

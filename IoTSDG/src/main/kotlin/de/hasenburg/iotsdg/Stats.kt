@@ -51,11 +51,15 @@ class Stats {
      * Add Stats
      ****************************************************************/
 
-    fun addSubscribeMessages() {
+    fun addPingMessage() {
+        numberOfPingMessages++
+    }
+
+    fun addSubscribeMessage() {
         numberOfSubscribeMessages++
     }
 
-    fun addPublishMessages() {
+    fun addPublishMessage() {
         numberOfPublishedMessages++
     }
 
@@ -98,10 +102,6 @@ class Stats {
         numberOfOverlappingMessageGeofences += intersects
     }
 
-    fun addPingMessages() {
-        numberOfPingMessages++
-    }
-
     /*****************************************************************
      * Summary
      ****************************************************************/
@@ -114,7 +114,7 @@ class Stats {
         return getSummary(clients, timeToRunPerClient)
     }
 
-    fun getSummary(clientsPerBrokerArea: List<Int>, timeToRunPerClient: Time, stat: Stats): String {
+    fun getSummary(clientsPerBrokerArea: List<Int>, timeToRunPerClient: Time): String {
         val clients = clientsPerBrokerArea.stream().mapToInt { it }.sum()
 
         return getSummary(clients, timeToRunPerClient)

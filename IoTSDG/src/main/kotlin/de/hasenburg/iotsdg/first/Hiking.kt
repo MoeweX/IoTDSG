@@ -136,13 +136,13 @@ fun main() {
             writer.close()
         }
     }
-    val output = stats.getSummary(clientsPerBrokerArea, timeToRunPerClient, stats)
+    val output = stats.getSummary(clientsPerBrokerArea, timeToRunPerClient)
     logger.info(output)
     File("$directoryPath/00_summary.txt").appendText(output)
 }
 
 private fun calculatePingActions(timestamp: Time, location: Location, stats: Stats): String {
-    stats.addPingMessages()
+    stats.addPingMessage()
     return "${timestamp.i(MS)};${location.lat};${location.lon};ping;;;\n"
 }
 
@@ -153,12 +153,12 @@ private fun calculateSubscribeActions(timestamp: Time, location: Location, geofe
     val geofenceRC = Geofence.circle(location, roadConditionSubscriptionGeofenceDiameter)
     actions.append("${timestamp.i(MS) + 1};${location.lat};${location.lon};subscribe;" + "$roadConditionTopic;${geofenceRC.wktString};\n")
     stats.addSubscriptionGeofenceOverlaps(geofenceRC, brokerAreas)
-    stats.addSubscribeMessages()
+    stats.addSubscribeMessage()
 
     // text broadcast
     actions.append("${timestamp.i(MS) + 2};${location.lat};${location.lon};subscribe;" + "$textBroadcastTopic;${geofenceTB.wktString};\n")
     stats.addSubscriptionGeofenceOverlaps(geofenceTB, brokerAreas)
-    stats.addSubscribeMessages()
+    stats.addSubscribeMessage()
 
     return actions.toString()
 }
@@ -171,7 +171,7 @@ private fun calculatePublishActions(timestamp: Time, location: Location, stats: 
         val geofenceRC = Geofence.circle(location, roadConditionMessageGeofenceDiameter)
         actions.append("${timestamp.i(MS) + 3};${location.lat};${location.lon};publish;" + "$roadConditionTopic;${geofenceRC.wktString};$roadConditionPayloadSize\n")
         stats.addMessageGeofenceOverlaps(geofenceRC, brokerAreas)
-        stats.addPublishMessages()
+        stats.addPublishMessage()
         stats.addPayloadSize(roadConditionPayloadSize)
     }
 
@@ -182,7 +182,7 @@ private fun calculatePublishActions(timestamp: Time, location: Location, stats: 
         val payloadSize = Random.nextInt(minTextBroadcastPayloadSize, maxTextBroadcastPayloadSize)
         actions.append("${timestamp.i(MS) + 4};${location.lat};${location.lon};publish;" + "$textBroadcastTopic;${geofenceTB.wktString};$payloadSize\n")
         stats.addMessageGeofenceOverlaps(geofenceTB, brokerAreas)
-        stats.addPublishMessages()
+        stats.addPublishMessage()
         stats.addPayloadSize(payloadSize)
     }
     return actions.toString()
