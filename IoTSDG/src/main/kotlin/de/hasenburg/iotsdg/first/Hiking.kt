@@ -53,7 +53,6 @@ private val subscriptionRenewalDistance = Distance(50, Distance.Unit.M)
 private val warmupTime = Time(5, S)
 private val timeToRunPerClient = Time(30, MIN)
 
-
 /**
  * Steps:
  *  1. pick broker
@@ -82,7 +81,6 @@ fun main() {
         // loop through clients for broker
         for (c in 1..broker.third) {
             currentWorkloadMachine = getCurrentWorkloadMachine(c, broker.first, workloadMachinesPerBroker[b], broker.third)
-
             val clientName = randomName()
             val clientDirection = Random.nextDouble(0.0, 360.0)
             logger.debug("Calculating actions for client $clientName which travels in $clientDirection")
@@ -103,13 +101,13 @@ fun main() {
                             maxTextBroadcastSubscriptionGeofenceDiameter))
 
             // send first ping and create initial subscriptions
-            writer.write(calculatePingActions(timestamp, location, stats))
+            writer.write(calculatePingAction(timestamp, location, stats))
             writer.write(calculateSubscribeActions(timestamp, location, geofenceTB, stats))
             timestamp = warmupTime
 
             // generate actions until time reached
             while (timestamp <= timeToRunPerClient) {
-                writer.write(calculatePingActions(timestamp, location, stats))
+                writer.write(calculatePingAction(timestamp, location, stats))
                 val travelledDistance = Distance(location.distanceKmTo(lastUpdatedLocation), KM)
                 if (travelledDistance >= subscriptionRenewalDistance) {
                     logger.debug("Renewing subscription for client $clientName")
@@ -130,7 +128,7 @@ fun main() {
             }
 
             // add a last ping message at runtime, as "last message"
-            writer.write(calculatePingActions(timeToRunPerClient, location, stats))
+            writer.write(calculatePingAction(timeToRunPerClient, location, stats))
 
             writer.flush()
             writer.close()
@@ -141,7 +139,7 @@ fun main() {
     File("$directoryPath/00_summary.txt").appendText(output)
 }
 
-private fun calculatePingActions(timestamp: Time, location: Location, stats: Stats): String {
+private fun calculatePingAction(timestamp: Time, location: Location, stats: Stats): String {
     stats.addPingMessage()
     return "${timestamp.i(MS)};${location.lat};${location.lon};ping;;;\n"
 }
