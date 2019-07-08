@@ -13,7 +13,7 @@ private val logger = LogManager.getLogger()
 
 // -------- Brokers --------
 private val brokerNames = listOf("Columbus", "Frankfurt", "Paris")
-private val brokerAreas = listOf(Geofence.circle(Location(-82.999083, 39.961332), 5.0),
+private val brokerAreas = listOf(Geofence.circle(Location(39.961332, -82.999083), 5.0),
         Geofence.circle(Location(50.106732, 8.663124), 2.1),
         Geofence.circle(Location(48.877366, 2.359708), 2.1))
 private val clientsPerBrokerArea = listOf(200, 200, 200)

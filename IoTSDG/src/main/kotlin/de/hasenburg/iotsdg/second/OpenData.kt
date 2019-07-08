@@ -4,21 +4,21 @@ import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import de.hasenburg.geobroker.commons.randomName
 import de.hasenburg.iotsdg.*
-import org.locationtech.spatial4j.distance.DistanceUtils
-import java.io.File
 import org.apache.logging.log4j.LogManager
-import kotlin.random.Random
-import de.hasenburg.iotsdg.Stats
+import org.locationtech.spatial4j.distance.DistanceUtils
 import units.Distance
-import units.Distance.Unit.*
+import units.Distance.Unit.KM
+import units.Distance.Unit.M
 import units.Time
 import units.Time.Unit.*
+import java.io.File
+import kotlin.random.Random
 
 private val logger = LogManager.getLogger()
 
 // -------- Brokers --------
 private val brokerNames = listOf("Columbus", "Frankfurt", "Paris")
-private val brokerAreas = listOf(Geofence.circle(Location(-82.999083, 39.961332), 5.0),
+private val brokerAreas = listOf(Geofence.circle(Location(39.961332, -82.999083), 5.0),
         Geofence.circle(Location(50.106732, 8.663124), 2.1),
         Geofence.circle(Location(48.877366, 2.359708), 2.1))
 private val workloadMachinesPerBroker = listOf(3, 3, 3)
@@ -28,7 +28,8 @@ private val pubsPerBrokerArea = listOf(600, 600, 600)
 // -------- Subscribers --------
 private val minTravelDistance = Distance(500, M)
 private val maxTravelDistance = Distance(100, KM)
-private val subscriberMobilityCheckTime = Time(5, S) // TODO add a range here to prevent bulk subscriptions
+private val minMobilityCheck = Time(3, S)
+private val maxMobilityCheck = Time(6, S)
 private const val mobilityProbability = 10 // %
 
 // -------- Subscription Geofences -------- values are in degree
@@ -94,9 +95,12 @@ fun main() {
             writer.write(calculatePingAction(timestamp, location, stats))
             timestamp = warmupTime
 
+            // pick device topic
+            val rnd = Random.nextInt(0, 3)
+
             // generate actions until time reached
             while (timestamp <= timeToRunPerClient) {
-                writer.write(calculatePublishActions(timestamp, location, stats))
+                writer.write(calculatePublishActions(timestamp, location, rnd, stats))
                 timestamp += Time(Random.nextInt(minPubTimeGap.i(MS), maxPubTimeGap.i(MS)), MS)
             }
 
@@ -143,7 +147,7 @@ fun main() {
                     writer.write(calculateSubscribeActions(timestamp, location, stats))
 
                 }
-                timestamp += subscriberMobilityCheckTime
+                timestamp += Time(Random.nextInt(minMobilityCheck.i(MS), maxMobilityCheck.i(MS)), MS)
             }
 
             // add a last ping message at runtime, as "last message"
@@ -191,25 +195,37 @@ private fun calculateSubscribeActions(timestamp: Time, location: Location, stats
     return actions.toString()
 }
 
-private fun calculatePublishActions(timestamp: Time, location: Location, stats: Stats): String {
+private fun calculatePublishActions(timestamp: Time, location: Location, topicIndex: Int, stats: Stats): String {
     val actions = StringBuilder()
 
-    // temperature condition
-    actions.append("${timestamp.i(MS) + 4};${location.lat};${location.lon};publish;" + "$temperatureTopic;;" + "$temperaturePayloadSize\n")
-    stats.addPublishMessage()
-    stats.addPayloadSize(temperaturePayloadSize)
+    when (topicIndex) {
+        0 -> {
+            // temperature condition
+            actions.append("${timestamp.i(MS) + 4};${location.lat};${location.lon};publish;" + "$temperatureTopic;;" + "$temperaturePayloadSize\n")
+            stats.addPublishMessage()
+            stats.addPayloadSize(temperaturePayloadSize)
+        }
 
-    // humidity broadcast
-    var payloadSize = Random.nextInt(minHumidityPayloadSize, maxHumidityPayloadSize)
-    actions.append("${timestamp.i(MS) + 5};${location.lat};${location.lon};publish;" + "$humidityTopic;;" + "$payloadSize\n")
-    stats.addPublishMessage()
-    stats.addPayloadSize(payloadSize)
+        1 -> {
+            // humidity broadcast
+            val payloadSize = Random.nextInt(minHumidityPayloadSize, maxHumidityPayloadSize)
+            actions.append("${timestamp.i(MS) + 5};${location.lat};${location.lon};publish;" + "$humidityTopic;;" + "$payloadSize\n")
+            stats.addPublishMessage()
+            stats.addPayloadSize(payloadSize)
+        }
 
-    // barometric pressure broadcast
-    payloadSize = Random.nextInt(minBarometerPayloadSize, maxBarometerPayloadSize)
-    actions.append("${timestamp.i(MS) + 6};${location.lat};${location.lon};publish;" + "$barometricPressureTopic;;$payloadSize\n")
-    stats.addPublishMessage()
-    stats.addPayloadSize(payloadSize)
+        2 -> {
+            // barometric pressure broadcast
+            val payloadSize = Random.nextInt(minBarometerPayloadSize, maxBarometerPayloadSize)
+            actions.append("${timestamp.i(MS) + 6};${location.lat};${location.lon};publish;" + "$barometricPressureTopic;;$payloadSize\n")
+            stats.addPublishMessage()
+            stats.addPayloadSize(payloadSize)
+        }
+
+        else -> {
+            logger.warn("Topic index {} out of range, no data will be published", topicIndex)
+        }
+    }
 
     return actions.toString()
 }
