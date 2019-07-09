@@ -119,7 +119,7 @@ fun getTrueWithChance(chance: Int): Boolean {
     } else if (chance < 0) {
         chance = 0
     }
-    val random = Random.nextInt(100) + 1 // not 0
+    val random = Random.nextInt(1, 101)
     return random <= chance
 }
 

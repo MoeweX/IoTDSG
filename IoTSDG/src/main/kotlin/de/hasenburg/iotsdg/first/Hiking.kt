@@ -46,7 +46,7 @@ private const val minTextBroadcastPayloadSize = 10 // byte
 private const val maxTextBroadcastPayloadSize = 1000 // byte
 
 // -------- Others  --------
-private const val directoryPath = "./hikingData"
+private const val directoryPath = "./hiking"
 private const val roadConditionTopic = "road"
 private const val textBroadcastTopic = "text"
 private val subscriptionRenewalDistance = Distance(50, Distance.Unit.M)

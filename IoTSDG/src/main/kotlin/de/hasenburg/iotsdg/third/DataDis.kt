@@ -4,52 +4,55 @@ import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import de.hasenburg.geobroker.commons.randomName
 import de.hasenburg.iotsdg.*
-import de.hasenburg.iotsdg.Stats
-import org.locationtech.spatial4j.distance.DistanceUtils
-import java.io.File
 import org.apache.logging.log4j.LogManager
-import kotlin.random.Random
+import org.locationtech.spatial4j.distance.DistanceUtils
+import units.Time
+import units.Time.Unit.*
+import java.io.File
+import kotlin.random.Random.Default.nextDouble
+import kotlin.random.Random.Default.nextInt
 
 
 private val logger = LogManager.getLogger()
 
-private const val minTravelDistance = 1.0 //km
-private const val maxTravelDistance = 20.0 //km
-private const val minPubTimeGap = 2000 //ms
-private const val maxPubTimeGap = 70000 //ms
-private const val minSubTimeGap = 3000 //ms
-private const val maxSubTimeGap = 12000 //ms
-private const val minSubRenewalTime = 5 * 60 * 1000 //5 min
-private const val maxSubRenewalTime = 60 * 60 * 1000 //60 min
-
-private const val minTemperatureBroadcastMessageGeofenceDiameter = 1.0 * DistanceUtils.KM_TO_DEG
-private const val maxTemperatureBroadcastMessageGeofenceDiameter = 10.0 * DistanceUtils.KM_TO_DEG
-private const val minHumidityBroadcastMessageGeofenceDiameter = 1.0 * DistanceUtils.KM_TO_DEG
-private const val maxHumidityBroadcastMessageGeofenceDiameter = 10.0 * DistanceUtils.KM_TO_DEG
-private const val minAnnouncementBroadcastMessageGeofenceDiameter = 40.0 * DistanceUtils.KM_TO_DEG
-private const val maxAnnouncementBroadcastMessageGeofenceDiameter = 120.0 * DistanceUtils.KM_TO_DEG
-
-private const val temperaturePayloadSize = 100
-private const val minHumidityPayloadSize = 50
-private const val maxHumidityPayloadSize = 150
-private const val minAnnouncementPayloadSize = 10
-private const val maxAnnouncementPayloadSize = 75
-private const val mobilityProbability = 50
-
-private const val directoryPath = "./dataDistribution"
-private const val temperatureTopic = "temperature"
-private const val humidityTopic = "humidity"
-private const val announcementTopic = "public_announcement"
-
+// -------- Brokers --------
 private val brokerNames = listOf("Columbus", "Frankfurt", "Paris")
-private val brokerAreas = listOf(Geofence.circle(Location(-82.999083, 39.961332), 5.0),
+private val brokerAreas = listOf(Geofence.circle(Location(39.961332, -82.999083), 5.0),
         Geofence.circle(Location(50.106732, 8.663124), 2.1),
         Geofence.circle(Location(48.877366, 2.359708), 2.1))
 private val workloadMachinesPerBroker = listOf(3, 3, 3)
-private val subsPerBrokerArea = listOf(2, 2, 2)
-private val pubsPerBrokerArea = listOf(3, 3, 3)
+private val subsPerBrokerArea = listOf(150, 150, 150)
+private val pubsPerBrokerArea = listOf(600, 600, 600)
 
-private const val timeToRunPerClient = 1800000
+// -------- Subscribers --------
+private const val minTravelSpeed = 2 // km/h
+private const val maxTravelSpeed = 8 // km/h
+private val minTravelTime = Time(5, S)
+private val maxTravelTime = Time(30, S)
+// random choice whether to subscribe to temperature or not
+private const val checkTemperatureSubscriptionProbability = 5 // %
+
+// -------- Publishers --------
+private val minPubTimeGap = Time(10, S)
+private val maxPubTimeGap = Time(60, S)
+
+// -------- Message Geofences -------- values are in degree
+private const val minTemperatureMessageGeofenceDiameter = 0.2 * DistanceUtils.KM_TO_DEG
+private const val maxTemperatureMessageGeofenceDiameter = 5.0 * DistanceUtils.KM_TO_DEG
+private const val minAnnouncementMessageGeofenceDiameter = 1.0 * DistanceUtils.KM_TO_DEG
+private const val maxAnnouncementMessageGeofenceDiameter = 30.0 * DistanceUtils.KM_TO_DEG
+
+// -------- Messages --------
+private const val temperatureTopic = "temperature"
+private const val temperaturePayloadSize = 100
+private const val announcementTopic = "announcement"
+private const val minAnnouncementPayloadSize = 50
+private const val maxAnnouncementPayloadSize = 500
+
+// -------- Others  --------
+private const val directoryPath = "./context"
+private val warmupTime = Time(5, S)
+private val timeToRunPerClient = Time(30, MIN)
 
 fun main() {
     validateBrokersDoNotOverlap(brokerAreas)
@@ -58,156 +61,158 @@ fun main() {
     val stats = Stats()
     val setup = getSetupString("de.hasenburg.iotsdg.third.DataDisKt")
     logger.info(setup)
-    File("$directoryPath/02_summary.txt").writeText(setup)
+    File("$directoryPath/00_summary.txt").writeText(setup)
 
-    for (b in 0..2) {
+    for (b in 0..2) { // for sensors
 
         val broker = getBrokerTriple(b, brokerNames, brokerAreas, subsPerBrokerArea, pubsPerBrokerArea)
         var currentWorkloadMachine: Int
 
-        // publisher actions
+        logger.info("Calculating publisher actions for broker ${broker.first}")
+        // loop through publishers for broker
         for (pub in 1..broker.third.second) {
             currentWorkloadMachine =
                     getCurrentWorkloadMachine(pub, broker.first, workloadMachinesPerBroker[b], broker.third.second)
-
             val clientName = randomName()
+            logger.debug("Calculating actions for publisher $clientName")
+
+            // file and writer
             val file = File("$directoryPath/${broker.first}-${currentWorkloadMachine}_Pub_$clientName.csv")
-            var timestamp = Random.nextInt(0, 2000)
             val writer = file.bufferedWriter()
-            var location = Location.randomInGeofence(broker.second)
             writer.write(getHeader())
 
-            /*writer.write(calculatePingActions(timestamp, location))
-            * not important */
+            // vars
+            val location = Location.randomInGeofence(broker.second)
+            var timestamp = Time(nextInt(0, warmupTime.i(MS)), MS)
+
+            // write fixed location of publisher
+            writer.write(calculatePingAction(timestamp, location, stats))
+            timestamp = warmupTime
+
+            // determine whether announcement or temperature
+            val announcement = getTrueWithChance(10)
 
             while (timestamp <= timeToRunPerClient) {
-
-                writer.write(calculatePublishActions(timestamp, location, stats))
-
-                if (getTrueWithChance(mobilityProbability)) {
-                    location = calculateNextLocation(broker.second,
-                            location,
-                            Random.nextDouble(0.0, 360.0),
-                            minTravelDistance,
-                            maxTravelDistance,
-                            stats)
+                if (announcement) {
+                    writer.write(calculateAnnouncementPublishAction(timestamp, location, stats))
+                } else {
+                    writer.write(calculateTemperaturePublishAction(timestamp, location, stats))
                 }
-                timestamp += Random.nextInt(minPubTimeGap, maxPubTimeGap)
+                timestamp += Time(nextInt(minPubTimeGap.i(MS), maxPubTimeGap.i(MS)), MS)
             }
+
+            // add a last ping message at runtime, as "last message"
+            writer.write(calculatePingAction(timeToRunPerClient, location, stats))
+
             writer.flush()
             writer.close()
         }
 
-        // subscriber actions
+        logger.info("Calculating subscriber actions for broker ${broker.first}")
+        // loop through subscribers for broker
         for (sub in 1..broker.third.first) { // for subscribers
             currentWorkloadMachine =
                     getCurrentWorkloadMachine(sub, broker.first, workloadMachinesPerBroker[b], broker.third.first)
-
             val clientName = randomName()
-            logger.debug("Calculating actions for client $clientName")
-            var location = Location.randomInGeofence(broker.second)
-            var timestamp = Random.nextInt(0, 3000)
+            val clientDirection = nextDouble(0.0, 360.0)
+            logger.debug("Calculating actions for client $clientName which travels in $clientDirection")
+
+            // file and writer
             val file = File("$directoryPath/${broker.first}-${currentWorkloadMachine}_Sub_$clientName.csv")
             val writer = file.bufferedWriter()
             writer.write(getHeader())
-            writer.write(calculateSubscribeActions(timestamp, location, stats))
-            timestamp += 1000
-            var subRenewalTime = Random.nextInt(minSubRenewalTime, maxSubRenewalTime)
+
+            // vars
+            var location = Location.randomInGeofence(broker.second)
+            var timestamp = Time(nextInt(0, warmupTime.i(MS)), MS)
+
+            // send first ping and create initial subscriptions
+            writer.write(calculatePingAction(timestamp, location, stats))
+            writer.write(calculateTemperatureSubscribeAction(timestamp, location, stats))
+            writer.write(calculateAnnouncementSubscribeAction(timestamp, location, stats))
+            timestamp = warmupTime
 
             while (timestamp <= timeToRunPerClient) {
+                writer.write(calculatePingAction(timestamp, location, stats))
 
-                if (timestamp >= subRenewalTime) {
-                    writer.write(calculateSubscribeActions(timestamp, location, stats))
-                    subRenewalTime += Random.nextInt(minSubRenewalTime, maxSubRenewalTime)
+                // renew temperature action?
+                if (getTrueWithChance(checkTemperatureSubscriptionProbability)) {
+                    writer.write(calculateTemperatureSubscribeAction(timestamp, location, stats))
                 }
+
+                val travelTime = Time(nextInt(minTravelTime.i(MS), maxTravelTime.i(MS)), MS)
                 location = calculateNextLocation(broker.second,
                         location,
-                        Random.nextDouble(0.0, 360.0),
-                        minTravelDistance,
-                        maxTravelDistance,
+                        clientDirection,
+                        travelTime,
+                        minTravelSpeed,
+                        maxTravelSpeed,
                         stats)
-                writer.write(calculatePingActions(timestamp, location, stats))
-                timestamp += Random.nextInt(minSubTimeGap, maxSubTimeGap)
+                timestamp += travelTime
             }
+
+            // add a last ping message at runtime, as "last message"
+            writer.write(calculatePingAction(timeToRunPerClient, location, stats))
+
             writer.flush()
             writer.close()
         }
     }
-    val output = getSummary(subsPerBrokerArea, pubsPerBrokerArea, timeToRunPerClient / 1000, stats)
+    // only consider subscribers for client distance travelled and average speed
+    val output = stats.getSummary(subsPerBrokerArea, timeToRunPerClient)
     logger.info(output)
-    File("$directoryPath/02_summary.txt").appendText(output)
+    File("$directoryPath/00_summary.txt").appendText(output)
 }
 
-private fun calculatePingActions(timestamp: Int, location: Location, stats: Stats): String {
-    stats.addPingMessages()
-    return "$timestamp;${location.lat};${location.lon};ping;;;\n"
+private fun calculatePingAction(timestamp: Time, location: Location, stats: Stats): String {
+    stats.addPingMessage()
+    return "${timestamp.i(MS)};${location.lat};${location.lon};ping;;;\n"
 }
 
-private fun calculateSubscribeActions(timestamp: Int, location: Location, stats: Stats): String {
-
+private fun calculateTemperatureSubscribeAction(timestamp: Time, location: Location, stats: Stats): String {
     val actions = StringBuilder()
 
-    // temperature
-    actions.append("${timestamp + 1};${location.lat};${location.lon};subscribe;" + "$temperatureTopic;;\n")
-    stats.addSubscribeMessages()
-
-    // humidity
-    actions.append("${timestamp + 2};${location.lat};${location.lon};subscribe;" + "$humidityTopic;;\n")
-    stats.addSubscribeMessages()
-
-    // barometric pressure
-    actions.append("${timestamp + 3};${location.lat};${location.lon};subscribe;" + "$announcementTopic;;\n")
-    stats.addSubscribeMessages()
+    val geofence = Geofence.world()
+    actions.append("${timestamp.i(MS) + 1};${location.lat};${location.lon};subscribe;$temperatureTopic;${geofence.wktString};\n")
+    stats.addSubscribeMessage()
 
     return actions.toString()
 }
 
-private fun calculatePublishActions(timestamp: Int, location: Location, stats: Stats): String {
+private fun calculateAnnouncementSubscribeAction(timestamp: Time, location: Location, stats: Stats): String {
     val actions = StringBuilder()
 
-    // temperature condition
-    val geofenceTB = Geofence.circle(location,
-            Random.nextDouble(minTemperatureBroadcastMessageGeofenceDiameter,
-                    maxTemperatureBroadcastMessageGeofenceDiameter))
-    addStat_messageGeofenceOverlaps(geofenceTB, brokerAreas, stats)
-    actions.append("${timestamp + 4};${location.lat};${location.lon};publish;" + "$temperatureTopic;" + "${geofenceTB.wktString};" + "$temperaturePayloadSize\n")
-    stats.addPublishMessages()
-    stats.addPayloadSize(temperaturePayloadSize)
-
-    // humidity broadcast
-    val geofenceH = Geofence.circle(location,
-            Random.nextDouble(minHumidityBroadcastMessageGeofenceDiameter, maxHumidityBroadcastMessageGeofenceDiameter))
-    addStat_messageGeofenceOverlaps(geofenceH, brokerAreas, stats)
-    var payloadSize = Random.nextInt(minHumidityPayloadSize, maxHumidityPayloadSize)
-    actions.append("${timestamp + 5};${location.lat};${location.lon};publish;" + "$humidityTopic;" + "${geofenceH.wktString};" + "$payloadSize\n")
-    stats.addPayloadSize(payloadSize)
-    stats.addPublishMessages()
-
-    // public announcement broadcast
-    val geofencePA = Geofence.circle(location,
-            Random.nextDouble(minAnnouncementBroadcastMessageGeofenceDiameter,
-                    maxAnnouncementBroadcastMessageGeofenceDiameter))
-    addStat_messageGeofenceOverlaps(geofencePA, brokerAreas, stats)
-    payloadSize = Random.nextInt(minAnnouncementPayloadSize, maxAnnouncementPayloadSize)
-    actions.append("${timestamp + 6};${location.lat};${location.lon};publish;" + "$announcementTopic;" + "${geofencePA.wktString};" + "$payloadSize\n")
-    stats.addPayloadSize(payloadSize)
-    stats.addPublishMessages()
+    val geofence = Geofence.world()
+    actions.append("${timestamp.i(MS) + 2};${location.lat};${location.lon};subscribe;$announcementTopic;${geofence.wktString};\n")
+    stats.addSubscribeMessage()
 
     return actions.toString()
 }
 
-private fun getSetupString(s: String): String {
-    // there should be another solution in the future: https://stackoverflow.com/questions/33907095/kotlin-how-can-i-use-reflection-on-packages
-    val c = Class.forName(s)
-    val stringBuilder = java.lang.StringBuilder("Setup:\n")
+private fun calculateAnnouncementPublishAction(timestamp: Time, location: Location, stats: Stats): String {
+    val actions = StringBuilder()
 
-    for (field in c.declaredFields) {
-        if (field.name.contains("logger") || field.name.contains("numberOf") || field.name.contains("clientDistanceTravelled") || field.name.contains(
-                        "totalPayloadSize")) {
+    val geofence = Geofence.circle(location,
+            nextDouble(minAnnouncementMessageGeofenceDiameter, maxAnnouncementMessageGeofenceDiameter))
+    val payloadSize = nextInt(minAnnouncementPayloadSize, maxAnnouncementPayloadSize)
+    actions.append("${timestamp.i(MS) + 3};${location.lat};${location.lon};publish;$announcementTopic;${geofence.wktString};$payloadSize\n")
+    stats.addPayloadSize(payloadSize)
+    stats.addMessageGeofenceOverlaps(geofence, brokerAreas)
+    stats.addPublishMessage()
 
-        } else {
-            stringBuilder.append("\t").append(field.name).append(": ").append(field.get(c)).append("\n")
-        }
-    }
-    return stringBuilder.toString()
+    return actions.toString()
+}
+
+private fun calculateTemperaturePublishAction(timestamp: Time, location: Location, stats: Stats): String {
+    val actions = StringBuilder()
+
+    val geofence = Geofence.circle(location,
+            nextDouble(minTemperatureMessageGeofenceDiameter, maxTemperatureMessageGeofenceDiameter))
+    val payloadSize = temperaturePayloadSize
+    actions.append("${timestamp.i(MS) + 3};${location.lat};${location.lon};publish;$temperatureTopic;${geofence.wktString};$payloadSize\n")
+    stats.addPayloadSize(payloadSize)
+    stats.addMessageGeofenceOverlaps(geofence, brokerAreas)
+    stats.addPublishMessage()
+
+    return actions.toString()
 }

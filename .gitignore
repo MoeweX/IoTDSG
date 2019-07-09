@@ -1,11 +1,11 @@
-hikingData*
+hiking*
 .DS_Store
 .idea/
 *.iml
 target/
 logfile.log
 out/
-environmentaldata/
-dataDistribution/
+enviromental/
+context/
 Sample/
 validationData/

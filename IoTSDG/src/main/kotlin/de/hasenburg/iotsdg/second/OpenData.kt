@@ -55,7 +55,7 @@ private const val minBarometerPayloadSize = 210
 private const val maxBarometerPayloadSize = 240
 
 // -------- Others  --------
-private const val directoryPath = "./environmentaldata"
+private const val directoryPath = "./enviromental"
 private val warmupTime = Time(5, S)
 private val timeToRunPerClient = Time(30, MIN)
 
@@ -67,9 +67,9 @@ fun main() {
     val stats = Stats()
     val setup = getSetupString("de.hasenburg.iotsdg.second.OpenDataKt")
     logger.info(setup)
-    File("$directoryPath/01_summary.txt").writeText(setup)
+    File("$directoryPath/00_summary.txt").writeText(setup)
 
-    for (b in 0..2) { // for sensors/publishers
+    for (b in 0..2) {
 
         val broker = getBrokerTriple(b, brokerNames, brokerAreas, subsPerBrokerArea, pubsPerBrokerArea)
         var currentWorkloadMachine: Int
@@ -159,7 +159,7 @@ fun main() {
     }
     val output = stats.getSummary(subsPerBrokerArea, pubsPerBrokerArea, timeToRunPerClient)
     logger.info(output)
-    File("$directoryPath/01_summary.txt").appendText(output)
+    File("$directoryPath/00_summary.txt").appendText(output)
 }
 
 private fun calculatePingAction(timestamp: Time, location: Location, stats: Stats): String {
@@ -168,27 +168,26 @@ private fun calculatePingAction(timestamp: Time, location: Location, stats: Stat
 }
 
 private fun calculateSubscribeActions(timestamp: Time, location: Location, stats: Stats): String {
-
     val actions = StringBuilder()
 
     // temperature
     val geofenceTB = Geofence.circle(location,
             Random.nextDouble(minTemperatureSubscriptionGeofenceDiameter, maxTemperatureSubscriptionGeofenceDiameter))
-    actions.append("${timestamp.i(MS) + 1};${location.lat};${location.lon};subscribe;" + "$temperatureTopic;" + "${geofenceTB.wktString};\n")
+    actions.append("${timestamp.i(MS) + 1};${location.lat};${location.lon};subscribe;$temperatureTopic;${geofenceTB.wktString};\n")
     stats.addSubscriptionGeofenceOverlaps(geofenceTB, brokerAreas)
     stats.addSubscribeMessage()
 
     // humidity
     val geofenceHB = Geofence.circle(location,
             Random.nextDouble(minHumiditySubscriptionGeofenceDiameter, maxHumiditySubscriptionGeofenceDiameter))
-    actions.append("${timestamp.i(MS) + 2};${location.lat};${location.lon};subscribe;" + "$humidityTopic;" + "${geofenceHB.wktString};\n")
+    actions.append("${timestamp.i(MS) + 2};${location.lat};${location.lon};subscribe;$humidityTopic;${geofenceHB.wktString};\n")
     stats.addSubscriptionGeofenceOverlaps(geofenceHB, brokerAreas)
     stats.addSubscribeMessage()
 
     // barometric pressure
     val geofenceBB = Geofence.circle(location,
             Random.nextDouble(minBarometricSubscriptionGeofenceDiameter, maxBarometricSubscriptionGeofenceDiameter))
-    actions.append("${timestamp.i(MS) + 3};${location.lat};${location.lon};subscribe;" + "$barometricPressureTopic;" + "${geofenceBB.wktString};\n")
+    actions.append("${timestamp.i(MS) + 3};${location.lat};${location.lon};subscribe;$barometricPressureTopic;${geofenceBB.wktString};\n")
     stats.addSubscriptionGeofenceOverlaps(geofenceBB, brokerAreas)
     stats.addSubscribeMessage()
 
@@ -197,11 +196,12 @@ private fun calculateSubscribeActions(timestamp: Time, location: Location, stats
 
 private fun calculatePublishActions(timestamp: Time, location: Location, topicIndex: Int, stats: Stats): String {
     val actions = StringBuilder()
+    val geofence = Geofence.world()
 
     when (topicIndex) {
         0 -> {
             // temperature condition
-            actions.append("${timestamp.i(MS) + 4};${location.lat};${location.lon};publish;" + "$temperatureTopic;;" + "$temperaturePayloadSize\n")
+            actions.append("${timestamp.i(MS) + 4};${location.lat};${location.lon};publish;$temperatureTopic;${geofence.wktString};$temperaturePayloadSize\n")
             stats.addPublishMessage()
             stats.addPayloadSize(temperaturePayloadSize)
         }
@@ -209,7 +209,7 @@ private fun calculatePublishActions(timestamp: Time, location: Location, topicIn
         1 -> {
             // humidity broadcast
             val payloadSize = Random.nextInt(minHumidityPayloadSize, maxHumidityPayloadSize)
-            actions.append("${timestamp.i(MS) + 5};${location.lat};${location.lon};publish;" + "$humidityTopic;;" + "$payloadSize\n")
+            actions.append("${timestamp.i(MS) + 5};${location.lat};${location.lon};publish;$humidityTopic;${geofence.wktString};$payloadSize\n")
             stats.addPublishMessage()
             stats.addPayloadSize(payloadSize)
         }
@@ -217,7 +217,7 @@ private fun calculatePublishActions(timestamp: Time, location: Location, topicIn
         2 -> {
             // barometric pressure broadcast
             val payloadSize = Random.nextInt(minBarometerPayloadSize, maxBarometerPayloadSize)
-            actions.append("${timestamp.i(MS) + 6};${location.lat};${location.lon};publish;" + "$barometricPressureTopic;;$payloadSize\n")
+            actions.append("${timestamp.i(MS) + 6};${location.lat};${location.lon};publish;$barometricPressureTopic;${geofence.wktString};$payloadSize\n")
             stats.addPublishMessage()
             stats.addPayloadSize(payloadSize)
         }

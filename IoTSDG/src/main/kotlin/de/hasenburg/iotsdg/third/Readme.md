@@ -6,12 +6,6 @@ temperature readings. But what temperature readings should he receive? While he 
 close proximity, this is not necessarily the most intelligent solution. A more advanced solution can be created when the
 sensors define the geo-context in which their data has relevance, as they have additional knowledge about the
 environment they operate in.
-In practice, this can be used by temperature sensors to control that only pedestrians walking down the street they are
-installed at to receive their readings. Then, when entering a store, the user would not ne inside the street's geofences
-anymore, but would suddenly be inside a message geofence that comprises the store's exhibition area. Another example is
-distribution of public announcements to citizens. As these announcements are only relevant to citizens currently in
-affected areas, it is convenient for a user to only subscribe once to respective topic (eg. (public) announcements) and
-then travel between districts authorities aszs these authorities have an additional knowledge about the information they
-are going to publish. To implement such applications with DisGB, users only have to subscribe once to topics of their
-interest and can then receive relevant data of publishers based on message geofences which are created with additional
-domain knowledge.
+Thus, in this scenario subscribers create subscriptions for a set of topics; these subscriptions are only updated 
+rarely and do not consider any Geofence. However, as subscribers are moving, their location is updated often.
+On the other hand, publishers do not travel at all and publish to their topic messages that have a geofence.
