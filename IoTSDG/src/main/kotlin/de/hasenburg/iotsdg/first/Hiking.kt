@@ -28,7 +28,7 @@ private val brokerAreas = listOf(Geofence.circle(Location(39.961332, -82.999083)
         Geofence.circle(Location(48.877366, 2.359708), 2.1))
 // to split the workload evenly across multiple machines for a given broker
 private val workloadMachinesPerBroker = listOf(3, 3, 3)
-private val clientsPerBrokerArea = listOf(500, 500, 500)
+private val clientsPerBrokerArea = listOf(1200, 1200, 1200)
 
 // -------- Geofences -------- values are in degree
 private const val roadConditionSubscriptionGeofenceDiameter = 0.5 * KM_TO_DEG

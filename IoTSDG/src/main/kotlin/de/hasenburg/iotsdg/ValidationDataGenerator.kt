@@ -23,7 +23,7 @@ private const val subscriptionGeofenceDiameter = 50.0 * DistanceUtils.KM_TO_DEG
 private const val messageGeofenceDiameter = 50.0 * DistanceUtils.KM_TO_DEG
 
 // -------- Others  --------
-private const val directoryPath = "./validationData"
+private const val directoryPath = "./validation"
 private const val topic = "data"
 private const val payloadSize = 20 // byte
 

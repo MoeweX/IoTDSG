@@ -22,8 +22,8 @@ private val brokerAreas = listOf(Geofence.circle(Location(39.961332, -82.999083)
         Geofence.circle(Location(50.106732, 8.663124), 2.1),
         Geofence.circle(Location(48.877366, 2.359708), 2.1))
 private val workloadMachinesPerBroker = listOf(3, 3, 3)
-private val subsPerBrokerArea = listOf(150, 150, 150)
-private val pubsPerBrokerArea = listOf(600, 600, 600)
+private val subsPerBrokerArea = listOf(400, 400, 400)
+private val pubsPerBrokerArea = listOf(800, 800, 800)
 
 // -------- Subscribers --------
 private val minTravelDistance = Distance(500, M)
