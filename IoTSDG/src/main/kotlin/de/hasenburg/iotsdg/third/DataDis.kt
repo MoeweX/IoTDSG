@@ -52,7 +52,7 @@ private const val maxAnnouncementPayloadSize = 500
 // -------- Others  --------
 private const val directoryPath = "./context"
 private val warmupTime = Time(5, S)
-private val timeToRunPerClient = Time(30, MIN)
+private val timeToRunPerClient = Time(15, MIN)
 
 fun main() {
     validateBrokersDoNotOverlap(brokerAreas)

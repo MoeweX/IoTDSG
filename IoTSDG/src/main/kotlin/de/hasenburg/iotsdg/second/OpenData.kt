@@ -57,7 +57,7 @@ private const val maxBarometerPayloadSize = 240
 // -------- Others  --------
 private const val directoryPath = "./enviromental"
 private val warmupTime = Time(5, S)
-private val timeToRunPerClient = Time(30, MIN)
+private val timeToRunPerClient = Time(15, MIN)
 
 
 fun main() {
