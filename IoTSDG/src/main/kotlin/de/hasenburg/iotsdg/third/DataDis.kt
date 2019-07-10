@@ -37,10 +37,10 @@ private val minPubTimeGap = Time(10, S)
 private val maxPubTimeGap = Time(60, S)
 
 // -------- Message Geofences -------- values are in degree
-private const val minTemperatureMessageGeofenceDiameter = 0.2 * DistanceUtils.KM_TO_DEG
-private const val maxTemperatureMessageGeofenceDiameter = 5.0 * DistanceUtils.KM_TO_DEG
-private const val minAnnouncementMessageGeofenceDiameter = 1.0 * DistanceUtils.KM_TO_DEG
-private const val maxAnnouncementMessageGeofenceDiameter = 30.0 * DistanceUtils.KM_TO_DEG
+private const val minTemperatureMessageGeofenceDiameter = 1.0 * DistanceUtils.KM_TO_DEG
+private const val maxTemperatureMessageGeofenceDiameter = 25.0 * DistanceUtils.KM_TO_DEG
+private const val minAnnouncementMessageGeofenceDiameter = 10.0 * DistanceUtils.KM_TO_DEG
+private const val maxAnnouncementMessageGeofenceDiameter = 100.0 * DistanceUtils.KM_TO_DEG
 
 // -------- Messages --------
 private const val temperatureTopic = "temperature"
