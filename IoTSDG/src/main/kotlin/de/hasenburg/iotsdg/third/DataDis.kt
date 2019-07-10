@@ -77,7 +77,7 @@ fun main() {
             logger.debug("Calculating actions for publisher $clientName")
 
             // file and writer
-            val file = File("$directoryPath/${broker.first}-${currentWorkloadMachine}_Pub_$clientName.csv")
+            val file = File("$directoryPath/${broker.first}-${currentWorkloadMachine}_$clientName.csv")
             val writer = file.bufferedWriter()
             writer.write(getHeader())
 
@@ -118,7 +118,7 @@ fun main() {
             logger.debug("Calculating actions for client $clientName which travels in $clientDirection")
 
             // file and writer
-            val file = File("$directoryPath/${broker.first}-${currentWorkloadMachine}_Sub_$clientName.csv")
+            val file = File("$directoryPath/${broker.first}-${currentWorkloadMachine}_$clientName.csv")
             val writer = file.bufferedWriter()
             writer.write(getHeader())
 

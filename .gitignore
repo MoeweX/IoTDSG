@@ -5,7 +5,7 @@ hiking*
 target/
 logfile.log
 out/
-enviromental/
+environment/
 context/
 Sample/
 validation/
