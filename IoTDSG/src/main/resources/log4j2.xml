@@ -13,7 +13,7 @@
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
         </Root>
-        <Logger name="de.hasenburg.iotsdg.BrainKt" level="info" additivity="false">
+        <Logger name="de.hasenburg.iotdsg.BrainKt" level="info" additivity="false">
             <AppenderRef ref="Console"/>
             <AppenderRef ref="File"/>
         </Logger>

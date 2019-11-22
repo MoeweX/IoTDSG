@@ -1,8 +1,12 @@
-package de.hasenburg.iotsdg
+package de.hasenburg.iotdsg
 
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import de.hasenburg.geobroker.commons.randomName
+import de.hasenburg.iotdsg.helper.Stats
+import de.hasenburg.iotdsg.helper.getHeader
+import de.hasenburg.iotdsg.helper.getSetupString
+import de.hasenburg.iotdsg.helper.prepareDir
 import org.apache.logging.log4j.LogManager
 import org.locationtech.spatial4j.distance.DistanceUtils
 import units.Time
@@ -16,8 +20,8 @@ private val logger = LogManager.getLogger()
 val nClients = 100
 
 // -------- Publishers --------
-private val minPubTimeGap = Time(1, Time.Unit.S)
-private val maxPubTimeGap = Time(5, Time.Unit.S)
+private val minPubTimeGap = Time(5, Time.Unit.S)
+private val maxPubTimeGap = Time(10, Time.Unit.S)
 private const val topic = "data"
 private const val payloadSize = 20 // byte
 
@@ -27,14 +31,14 @@ private const val geofenceDiameter = 50.0 * DistanceUtils.KM_TO_DEG
 
 // -------- Others  --------
 private const val directoryPath = "./match_all"
-private val warmupTime = Time(5, Time.Unit.S)
-private val timeToRunPerClient = Time(1, Time.Unit.MIN)
+private val warmupTime = Time(30, Time.Unit.S)
+private val timeToRunPerClient = Time(15, Time.Unit.MIN)
 
 fun main() {
     prepareDir(directoryPath)
 
     val stats = Stats()
-    val setup = getSetupString("de.hasenburg.iotsdg.MatchAllGeneratorKt")
+    val setup = getSetupString("de.hasenburg.iotdsg.MatchAllGeneratorKt")
     logger.info(setup)
     File("$directoryPath/00_summary.txt").writeText(setup)
 
@@ -71,7 +75,6 @@ fun main() {
         writer.close()
     }
 
-    val timeToRunPerClient = Time(155, Time.Unit.S)
     val output = stats.getSummary(nClients, timeToRunPerClient)
 
     logger.info(output)

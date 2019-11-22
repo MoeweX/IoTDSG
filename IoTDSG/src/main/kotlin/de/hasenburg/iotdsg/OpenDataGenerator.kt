@@ -1,9 +1,18 @@
-package de.hasenburg.iotsdg.second
+package de.hasenburg.iotdsg
+
+/**
+In the OpenData scenario, IoT sensors publish their data to their respective topic, i.e., temperature, humidity,
+or barometric pressure.
+This data is supposed to be available world wide so no message geofence to restrain access based on regions, exist.
+Furthermore, in this scenario subscribers have an interest in data from sensors nearby and thus create subscriptions
+for different sensors in proximity. Each subscriber might have a different preference regarding the proximity, so the
+subscription geofences have arbitrary sizes, even different for the same subscriber for the available topics.
+*/
 
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import de.hasenburg.geobroker.commons.randomName
-import de.hasenburg.iotsdg.*
+import de.hasenburg.iotdsg.helper.*
 import org.apache.logging.log4j.LogManager
 import org.locationtech.spatial4j.distance.DistanceUtils
 import units.Distance
@@ -65,20 +74,27 @@ fun main() {
     prepareDir(directoryPath)
 
     val stats = Stats()
-    val setup = getSetupString("de.hasenburg.iotsdg.second.OpenDataKt")
+    val setup = getSetupString("de.hasenburg.iotdsg.OpenDataGeneratorKt")
     logger.info(setup)
     File("$directoryPath/00_summary.txt").writeText(setup)
 
     for (b in 0..2) {
 
-        val broker = getBrokerTriple(b, brokerNames, brokerAreas, subsPerBrokerArea, pubsPerBrokerArea)
+        val broker = getBrokerTriple(b,
+                brokerNames,
+                brokerAreas,
+                subsPerBrokerArea,
+                pubsPerBrokerArea)
         var currentWorkloadMachine: Int
 
         logger.info("Calculating publisher actions for broker ${broker.first}")
         // loop through publishers for broker
         for (pub in 1..broker.third.second) {
             currentWorkloadMachine =
-                    getCurrentWorkloadMachine(pub, broker.first, workloadMachinesPerBroker[b], broker.third.second)
+                    getCurrentWorkloadMachine(pub,
+                            broker.first,
+                            workloadMachinesPerBroker[b],
+                            broker.third.second)
             val clientName = randomName()
             logger.debug("Calculating actions for publisher $clientName")
 
@@ -115,7 +131,10 @@ fun main() {
         // loop through subscribers for broker
         for (sub in 1..broker.third.first) { // for subscribers
             currentWorkloadMachine =
-                    getCurrentWorkloadMachine(sub, broker.first, workloadMachinesPerBroker[b], broker.third.first)
+                    getCurrentWorkloadMachine(sub,
+                            broker.first,
+                            workloadMachinesPerBroker[b],
+                            broker.third.first)
             val clientName = randomName()
             logger.debug("Calculating actions for subscriber $clientName")
 

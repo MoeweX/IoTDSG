@@ -1,9 +1,21 @@
-package de.hasenburg.iotsdg.first
+package de.hasenburg.iotdsg
+
+/**
+In the hiking scenario, clients travel on pre-defined routes and publish data to all other clients in close proximity
+on a regular basis.
+Our clients are hikers that use a messaging service to share information concerning their surroundings (e.g., the
+condition of the path they are taking), as well as to send text messages to other hikers nearby.
+Each published message has a message geofence that ensures that data is not sent to clients too far away to keep
+information local and prevent data being mined by third parties.
+Furthermore, each client creates a subscription with a geofence comprising the nearby area; note, that each message and
+subscription geofence can have a different shape and size as clients can define these based on their personal needs and
+preferences.
+*/
 
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import de.hasenburg.geobroker.commons.randomName
-import de.hasenburg.iotsdg.*
+import de.hasenburg.iotdsg.helper.*
 import org.apache.logging.log4j.LogManager
 import org.locationtech.spatial4j.distance.DistanceUtils.KM_TO_DEG
 import units.Distance
@@ -66,13 +78,16 @@ fun main() {
     prepareDir(directoryPath)
 
     val stats = Stats()
-    val setup = getSetupString("de.hasenburg.iotsdg.first.HikingKt")
+    val setup = getSetupString("de.hasenburg.iotdsg.HikingGeneratorKt")
     logger.info(setup)
     File("$directoryPath/00_summary.txt").writeText(setup)
 
     for (b in 0..2) {
         // pick a broker
-        val broker = getBrokerTriple(b, brokerNames, brokerAreas, clientsPerBrokerArea)
+        val broker = getBrokerTriple(b,
+                brokerNames,
+                brokerAreas,
+                clientsPerBrokerArea)
 
         logger.info("Calculating actions for broker ${broker.first}")
 
@@ -80,7 +95,10 @@ fun main() {
 
         // loop through clients for broker
         for (c in 1..broker.third) {
-            currentWorkloadMachine = getCurrentWorkloadMachine(c, broker.first, workloadMachinesPerBroker[b], broker.third)
+            currentWorkloadMachine = getCurrentWorkloadMachine(c,
+                    broker.first,
+                    workloadMachinesPerBroker[b],
+                    broker.third)
             val clientName = randomName()
             val clientDirection = Random.nextDouble(0.0, 360.0)
             logger.debug("Calculating actions for client $clientName which travels in $clientDirection")

@@ -1,4 +1,4 @@
-package de.hasenburg.iotsdg
+package de.hasenburg.iotdsg.helper
 
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
@@ -133,7 +133,11 @@ fun calculateNextLocation(brokerGeofence: Geofence, location: Location, clientDi
     // calculate travelled distance
     val distance = Distance(Random.nextDouble(minTravelDistance.d(M), maxTravelDistance.d(M)), M)
     logger.trace("Travelling for ${distance.d(M)}m.")
-    return calculateNextLocation(brokerGeofence, location, clientDirection, distance, stats)
+    return calculateNextLocation(brokerGeofence,
+            location,
+            clientDirection,
+            distance,
+            stats)
 }
 
 /**
@@ -148,7 +152,11 @@ fun calculateNextLocation(brokerGeofence: Geofence, location: Location, clientDi
     val distance = Distance(travelSpeed * travelTime.d(H), KM) // km
     logger.trace("Travelling with $travelSpeed km/h for ${travelTime.d(S)} seconds which leads to ${distance.d(M)}m.")
 
-    return calculateNextLocation(brokerGeofence, location, clientDirection, distance, stats)
+    return calculateNextLocation(brokerGeofence,
+            location,
+            clientDirection,
+            distance,
+            stats)
 }
 
 private fun calculateNextLocation(brokerGeofence: Geofence, location: Location, clientDirection: Double,

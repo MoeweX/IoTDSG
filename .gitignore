@@ -1,10 +1,10 @@
-hiking*
 .DS_Store
 .idea/
 *.iml
 target/
 logfile.log
 out/
+hiking/
 environment/
 context/
 Sample/

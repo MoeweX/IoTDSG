@@ -1,4 +1,4 @@
-package de.hasenburg.iotsdg
+package de.hasenburg.iotdsg.helper
 
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import units.Distance

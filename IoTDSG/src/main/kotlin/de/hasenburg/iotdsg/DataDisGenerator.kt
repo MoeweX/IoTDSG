@@ -1,9 +1,21 @@
-package de.hasenburg.iotsdg.third
+package de.hasenburg.iotdsg
+
+/**
+The main idea of this scenario is that subscribers know what kind of data they want to receive, while publishers know in
+what geo-context a data delivery makes sense. For example, a subscriber might want to continuously receive air
+temperature readings. But what temperature readings should he receive? While he could receive all readings of sensors in
+close proximity, this is not necessarily the most intelligent solution. A more advanced solution can be created when the
+sensors define the geo-context in which their data has relevance, as they have additional knowledge about the
+environment they operate in.
+Thus, in this scenario subscribers create subscriptions for a set of topics; these subscriptions are only updated
+rarely and do not consider any Geofence. However, as subscribers are moving, their location is updated often.
+On the other hand, publishers do not travel at all and publish to their topic messages that have a geofence.
+*/
 
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import de.hasenburg.geobroker.commons.randomName
-import de.hasenburg.iotsdg.*
+import de.hasenburg.iotdsg.helper.*
 import org.apache.logging.log4j.LogManager
 import org.locationtech.spatial4j.distance.DistanceUtils
 import units.Time
@@ -59,20 +71,27 @@ fun main() {
     prepareDir(directoryPath)
 
     val stats = Stats()
-    val setup = getSetupString("de.hasenburg.iotsdg.third.DataDisKt")
+    val setup = getSetupString("de.hasenburg.iotdsg.DataDisGeneratorKt")
     logger.info(setup)
     File("$directoryPath/00_summary.txt").writeText(setup)
 
     for (b in 0..2) { // for sensors
 
-        val broker = getBrokerTriple(b, brokerNames, brokerAreas, subsPerBrokerArea, pubsPerBrokerArea)
+        val broker = getBrokerTriple(b,
+                brokerNames,
+                brokerAreas,
+                subsPerBrokerArea,
+                pubsPerBrokerArea)
         var currentWorkloadMachine: Int
 
         logger.info("Calculating publisher actions for broker ${broker.first}")
         // loop through publishers for broker
         for (pub in 1..broker.third.second) {
             currentWorkloadMachine =
-                    getCurrentWorkloadMachine(pub, broker.first, workloadMachinesPerBroker[b], broker.third.second)
+                    getCurrentWorkloadMachine(pub,
+                            broker.first,
+                            workloadMachinesPerBroker[b],
+                            broker.third.second)
             val clientName = randomName()
             logger.debug("Calculating actions for publisher $clientName")
 
@@ -112,7 +131,10 @@ fun main() {
         // loop through subscribers for broker
         for (sub in 1..broker.third.first) { // for subscribers
             currentWorkloadMachine =
-                    getCurrentWorkloadMachine(sub, broker.first, workloadMachinesPerBroker[b], broker.third.first)
+                    getCurrentWorkloadMachine(sub,
+                            broker.first,
+                            workloadMachinesPerBroker[b],
+                            broker.third.first)
             val clientName = randomName()
             val clientDirection = nextDouble(0.0, 360.0)
             logger.debug("Calculating actions for client $clientName which travels in $clientDirection")
@@ -136,7 +158,8 @@ fun main() {
                 writer.write(calculatePingAction(timestamp, location, stats))
 
                 // renew temperature action?
-                if (getTrueWithChance(checkTemperatureSubscriptionProbability)) {
+                if (getTrueWithChance(
+                                checkTemperatureSubscriptionProbability)) {
                     writer.write(calculateTemperatureSubscribeAction(timestamp, location, stats))
                 }
 

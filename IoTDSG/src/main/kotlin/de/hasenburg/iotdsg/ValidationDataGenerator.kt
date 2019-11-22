@@ -1,8 +1,9 @@
-package de.hasenburg.iotsdg
+package de.hasenburg.iotdsg
 
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
 import de.hasenburg.geobroker.commons.randomName
+import de.hasenburg.iotdsg.helper.*
 import org.apache.logging.log4j.LogManager
 import org.locationtech.spatial4j.distance.DistanceUtils
 import units.Time
@@ -32,13 +33,17 @@ fun main() {
     prepareDir(directoryPath)
 
     val stats = Stats()
-    val setup = getSetupString("de.hasenburg.iotsdg.ValidationDataGeneratorKt")
+    val setup =
+            getSetupString("de.hasenburg.iotdsg.ValidationDataGeneratorKt")
     logger.info(setup)
     File("$directoryPath/00_summary.txt").writeText(setup)
 
     for (b in 0..2) {
         // pick a broker
-        val broker = getBrokerTriple(b, brokerNames, brokerAreas, clientsPerBrokerArea)
+        val broker = getBrokerTriple(b,
+                brokerNames,
+                brokerAreas,
+                clientsPerBrokerArea)
 
         logger.info("Calculating actions for broker ${broker.first}")
 
