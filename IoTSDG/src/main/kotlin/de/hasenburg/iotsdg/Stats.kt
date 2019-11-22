@@ -121,7 +121,7 @@ class Stats {
     }
 
     @Suppress("LocalVariableName")
-    private fun getSummary(numberOfClients: Int, timeToRunPerClient: Time): String {
+    fun getSummary(numberOfClients: Int, timeToRunPerClient: Time): String {
         val distancePerClient_KM = getClientDistanceTravelled().d(KM) / numberOfClients // km
         val runtime_S = timeToRunPerClient.d(S) //s
 
