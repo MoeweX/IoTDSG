@@ -10,7 +10,7 @@ information local and prevent data being mined by third parties.
 Furthermore, each client creates a subscription with a geofence comprising the nearby area; note, that each message and
 subscription geofence can have a different shape and size as clients can define these based on their personal needs and
 preferences.
-*/
+ */
 
 import de.hasenburg.geobroker.commons.model.spatial.Geofence
 import de.hasenburg.geobroker.commons.model.spatial.Location
@@ -61,6 +61,7 @@ private const val maxTextBroadcastPayloadSize = 1000 // byte
 private const val directoryPath = "./hiking"
 private const val roadConditionTopic = "road"
 private const val textBroadcastTopic = "text"
+private const val topicPermutations = 1 // e.g., 2 -> road0, road1 + text0, text1
 private val subscriptionRenewalDistance = Distance(50, Distance.Unit.M)
 private val warmupTime = Time(5, S)
 private val timeToRunPerClient = Time(15, MIN)
@@ -112,6 +113,7 @@ fun main() {
             var location = Location.randomInGeofence(broker.second)
             var lastUpdatedLocation = location // needed to determine if subscription should be updated
             var timestamp = Time(Random.nextInt(0, warmupTime.i(MS)), MS)
+            val topicPermutation = Random.nextInt(0, topicPermutations)
 
             // this geofence is only calculated once per client
             val geofenceTB = Geofence.circle(location,
@@ -120,7 +122,7 @@ fun main() {
 
             // send first ping and create initial subscriptions
             writer.write(calculatePingAction(timestamp, location, stats))
-            writer.write(calculateSubscribeActions(timestamp, location, geofenceTB, stats))
+            writer.write(calculateSubscribeActions(timestamp, location, geofenceTB, topicPermutation, stats))
             timestamp = warmupTime
 
             // generate actions until time reached
@@ -129,10 +131,10 @@ fun main() {
                 val travelledDistance = Distance(location.distanceKmTo(lastUpdatedLocation), KM)
                 if (travelledDistance >= subscriptionRenewalDistance) {
                     logger.debug("Renewing subscription for client $clientName")
-                    writer.write(calculateSubscribeActions(timestamp, location, geofenceTB, stats))
+                    writer.write(calculateSubscribeActions(timestamp, location, geofenceTB, topicPermutation, stats))
                     lastUpdatedLocation = location
                 }
-                writer.write(calculatePublishActions(timestamp, location, stats))
+                writer.write(calculatePublishActions(timestamp, location, topicPermutation, stats))
 
                 val travelTime = Time(Random.nextInt(minTravelTime.i(MS), maxTravelTime.i(MS)), MS)
                 location = calculateNextLocation(broker.second,
@@ -162,30 +164,35 @@ private fun calculatePingAction(timestamp: Time, location: Location, stats: Stat
     return "${timestamp.i(MS)};${location.lat};${location.lon};ping;;;\n"
 }
 
-private fun calculateSubscribeActions(timestamp: Time, location: Location, geofenceTB: Geofence, stats: Stats): String {
+private fun calculateSubscribeActions(timestamp: Time, location: Location, geofenceTB: Geofence, topicPermutation: Int,
+                                      stats: Stats): String {
     val actions = StringBuilder()
 
     // road condition
     val geofenceRC = Geofence.circle(location, roadConditionSubscriptionGeofenceDiameter)
-    actions.append("${timestamp.i(MS) + 1};${location.lat};${location.lon};subscribe;" + "$roadConditionTopic;${geofenceRC.wktString};\n")
+    actions.append("${timestamp.i(MS) + 1};${location.lat};${location.lon};subscribe;"
+            + "${permute(roadConditionTopic, topicPermutation)};${geofenceRC.wktString};\n")
     stats.addSubscriptionGeofenceOverlaps(geofenceRC, brokerAreas)
     stats.addSubscribeMessage()
 
     // text broadcast
-    actions.append("${timestamp.i(MS) + 2};${location.lat};${location.lon};subscribe;" + "$textBroadcastTopic;${geofenceTB.wktString};\n")
+    actions.append("${timestamp.i(MS) + 2};${location.lat};${location.lon};subscribe;"
+            + "${permute(textBroadcastTopic, topicPermutation)};${geofenceTB.wktString};\n")
     stats.addSubscriptionGeofenceOverlaps(geofenceTB, brokerAreas)
     stats.addSubscribeMessage()
 
     return actions.toString()
 }
 
-private fun calculatePublishActions(timestamp: Time, location: Location, stats: Stats): String {
+private fun calculatePublishActions(timestamp: Time, location: Location, topicPermutation: Int, stats: Stats): String {
     val actions = StringBuilder()
 
     // road condition
     if (getTrueWithChance(roadConditionPublicationProbability)) {
         val geofenceRC = Geofence.circle(location, roadConditionMessageGeofenceDiameter)
-        actions.append("${timestamp.i(MS) + 3};${location.lat};${location.lon};publish;" + "$roadConditionTopic;${geofenceRC.wktString};$roadConditionPayloadSize\n")
+        actions.append("${timestamp.i(MS) + 3};${location.lat};${location.lon};publish;"
+                + "${permute(roadConditionTopic,
+                topicPermutation)};${geofenceRC.wktString};$roadConditionPayloadSize\n")
         stats.addMessageGeofenceOverlaps(geofenceRC, brokerAreas)
         stats.addPublishMessage()
         stats.addPayloadSize(roadConditionPayloadSize)
@@ -196,10 +203,15 @@ private fun calculatePublishActions(timestamp: Time, location: Location, stats: 
         val geofenceTB = Geofence.circle(location,
                 Random.nextDouble(minTextBroadcastMessageGeofenceDiameter, maxTextBroadcastMessageGeofenceDiameter))
         val payloadSize = Random.nextInt(minTextBroadcastPayloadSize, maxTextBroadcastPayloadSize)
-        actions.append("${timestamp.i(MS) + 4};${location.lat};${location.lon};publish;" + "$textBroadcastTopic;${geofenceTB.wktString};$payloadSize\n")
+        actions.append("${timestamp.i(MS) + 4};${location.lat};${location.lon};publish;"
+                + "${permute(textBroadcastTopic, topicPermutation)};${geofenceTB.wktString};$payloadSize\n")
         stats.addMessageGeofenceOverlaps(geofenceTB, brokerAreas)
         stats.addPublishMessage()
         stats.addPayloadSize(payloadSize)
     }
     return actions.toString()
+}
+
+fun permute(topic: String, permutation: Int): String {
+    return "$topic/$permutation"
 }
